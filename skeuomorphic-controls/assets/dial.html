@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dial</title>
+<style>
+  :root {
+    --page: #ececec;
+    --card: #f3f3f3;
+    --body: #1b1b1b;
+    --track: #0e0e0e;
+    --btn: #151515;
+    --icon: #5f5f5f;
+    --icon-on: #e8e8e8;
+    --fill-a: #74e6ef;
+    --fill-b: #7fd6ee;
+    --fill-c: #3d8ef6;
+    --fill-d: #2a6ff0;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    margin: 0;
+    display: grid;
+    place-items: center;
+    background: var(--page);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+
+  .card {
+    width: min(540px, calc(100vw - 32px));
+    aspect-ratio: 54 / 57;
+    display: grid;
+    place-items: center;
+    background: var(--card);
+    border-radius: 28px;
+    box-shadow: 0 1px 0 #fff inset, 0 20px 40px -30px rgba(0,0,0,.25);
+  }
+
+  /* ---------- control body ---------- */
+  .dial {
+    --h: 114px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: var(--h);
+    padding: 0 12px 0 34px;
+    border-radius: calc(var(--h) / 2);
+    background: linear-gradient(180deg, #232323 0%, var(--body) 45%, #161616 100%);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,.06) inset,
+      0 -1px 0 rgba(0,0,0,.6) inset,
+      0 22px 30px -14px rgba(0,0,0,.45),
+      0 6px 10px -4px rgba(0,0,0,.35);
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* ---------- level bar ---------- */
+  .track {
+    position: relative;
+    width: 212px;
+    height: 42px;
+    border-radius: 21px;
+    background: var(--track);
+    box-shadow:
+      0 2px 4px rgba(0,0,0,.8) inset,
+      0 1px 0 rgba(255,255,255,.05);
+    overflow: hidden;
+    isolation: isolate;
+    margin-right: 8px;
+  }
+
+  .fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: calc(var(--v) * 1%);
+    min-width: 42px;
+    border-radius: 21px;
+    background: linear-gradient(90deg, var(--fill-a) 0%, var(--fill-b) 40%, var(--fill-c) 82%, var(--fill-d) 100%);
+    background-size: 212px 100%;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,.35) inset,
+      0 -2px 6px rgba(0,40,120,.25) inset;
+    transition: width .12s ease-out;
+  }
+
+  /* soft glow that trails off into the empty track */
+  .fill::after {
+    content: "";
+    position: absolute;
+    top: 0; bottom: 0;
+    left: calc(100% - 21px);
+    width: 90px;
+    background: linear-gradient(90deg, rgba(61,142,246,.45), rgba(61,142,246,0));
+    border-radius: 0 21px 21px 0;
+    z-index: -1;
+    opacity: calc((100 - var(--v)) / 30);
+  }
+
+  .fill.off { opacity: .25; filter: saturate(.2); }
+
+  /* ---------- mode buttons ---------- */
+  .modes {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .mode {
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    cursor: pointer;
+    color: var(--icon);
+    background: radial-gradient(circle at 50% 35%, #1d1d1d, var(--btn) 70%);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,.06),
+      0 2px 3px rgba(0,0,0,.7) inset;
+    transition: color .15s;
+  }
+
+  .mode svg { width: 13px; height: 13px; display: block; }
+
+  .mode[aria-pressed="true"] {
+    color: var(--icon-on);
+  }
+  .mode[aria-pressed="true"] svg { filter: drop-shadow(0 0 3px rgba(255,255,255,.45)); }
+
+  .mode:focus-visible, .knob:focus-visible {
+    outline: 2px solid var(--fill-c);
+    outline-offset: 3px;
+  }
+
+  /* ---------- knob ---------- */
+  .knob {
+    position: relative;
+    width: 92px;
+    height: 92px;
+    border-radius: 50%;
+    cursor: grab;
+    touch-action: none;
+    background: radial-gradient(circle at 50% 40%, #2a2a2a, #121212 70%);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,.08) inset,
+      0 10px 16px -4px rgba(0,0,0,.75),
+      0 2px 3px rgba(0,0,0,.6);
+  }
+  .knob.dragging { cursor: grabbing; }
+
+  /* rotating knurled ring */
+  .ring {
+    position: absolute;
+    inset: 6px;
+    border-radius: 50%;
+    transform: rotate(var(--a, 0deg));
+    background:
+      repeating-conic-gradient(from 0deg, #4d4d4d 0deg 3.4deg, #161616 3.4deg 8deg);
+    -webkit-mask: radial-gradient(circle, transparent 26px, #000 27px, #000 38px, transparent 39px);
+            mask: radial-gradient(circle, transparent 26px, #000 27px, #000 38px, transparent 39px);
+  }
+
+  /* shading over the ring so it reads as 3D */
+  .shade {
+    position: absolute;
+    inset: 6px;
+    border-radius: 50%;
+    pointer-events: none;
+    background: linear-gradient(160deg, rgba(255,255,255,.12), rgba(0,0,0,.35) 70%);
+    -webkit-mask: radial-gradient(circle, transparent 26px, #000 27px);
+            mask: radial-gradient(circle, transparent 26px, #000 27px);
+  }
+
+  .cap {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 46px; height: 46px;
+    margin: -23px 0 0 -23px;
+    border-radius: 50%;
+    background: #0d0d0d;
+    box-shadow: 0 1px 0 rgba(255,255,255,.07);
+    display: grid;
+    place-items: center;
+  }
+
+  .face {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: radial-gradient(circle at 50% 30%, #b9b9b9, #8e8e8e 75%);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,.5) inset,
+      0 2px 4px rgba(0,0,0,.7);
+    font: 700 9px/1 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    letter-spacing: -.02em;
+    color: #1e1e1e;
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fill { transition: none; }
+  }
+
+  @media (max-width: 440px) {
+    .dial { transform: scale(.78); }
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="dial" id="dial">
+      <div class="track" aria-hidden="true">
+        <div class="fill" id="fill"></div>
+      </div>
+
+      <div class="modes" role="group" aria-label="Mode">
+        <button class="mode" type="button" data-mode="light" aria-pressed="true" aria-label="Brightness">
+          <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M8 3.2a3.6 3.6 0 0 0-2.1 6.5c.3.2.5.6.5 1v.5h3.2v-.5c0-.4.2-.8.5-1A3.6 3.6 0 0 0 8 3.2Z"/>
+            <rect x="6.4" y="12" width="3.2" height="1.4" rx=".6"/>
+            <path d="M8 .6v1.5M2.6 2.6l1 1M13.4 2.6l-1 1M.8 7h1.5M13.7 7h1.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button class="mode" type="button" data-mode="sound" aria-pressed="false" aria-label="Volume">
+          <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M2 6h2.4L8.2 2.8c.4-.3.9 0 .9.4v9.6c0 .4-.5.7-.9.4L4.4 10H2a.8.8 0 0 1-.8-.8V6.8C1.2 6.4 1.6 6 2 6Z"/>
+            <path d="M11.2 5.4a3.6 3.6 0 0 1 0 5.2M13 3.8a6 6 0 0 1 0 8.4" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="knob" id="knob" role="slider" tabindex="0"
+           aria-label="Brightness" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+        <div class="ring" id="ring"></div>
+        <div class="shade"></div>
+        <div class="cap"><div class="face" id="face">100%</div></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const dial = document.getElementById('dial');
+  const knob = document.getElementById('knob');
+  const ring = document.getElementById('ring');
+  const face = document.getElementById('face');
+  const fill = document.getElementById('fill');
+  const modeButtons = [...document.querySelectorAll('.mode')];
+
+  // Each mode keeps its own level.
+  const values = { light: 100, sound: 36 };
+  let mode = 'light';
+
+  const DEG_PER_UNIT = 3.0;  // how far the knob turns for 1%
+  const clamp = v => Math.min(100, Math.max(0, v));
+
+  function render() {
+    const v = Math.round(values[mode]);
+    dial.style.setProperty('--v', v);
+    ring.style.setProperty('--a', (v * DEG_PER_UNIT) + 'deg');
+    face.textContent = v + '%';
+    fill.classList.toggle('off', v === 0);
+    knob.setAttribute('aria-valuenow', v);
+    knob.setAttribute('aria-valuetext', v + '%');
+  }
+
+  function setValue(v) {
+    values[mode] = clamp(v);
+    render();
+  }
+
+  function setMode(next) {
+    mode = next;
+    modeButtons.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === mode)));
+    knob.setAttribute('aria-label', mode === 'light' ? 'Brightness' : 'Volume');
+    render();
+  }
+
+  modeButtons.forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+
+  // Rotate the knob by dragging around its centre.
+  let lastAngle = null;
+  const angleAt = (e) => {
+    const r = knob.getBoundingClientRect();
+    return Math.atan2(e.clientY - (r.top + r.height / 2), e.clientX - (r.left + r.width / 2)) * 180 / Math.PI;
+  };
+
+  knob.addEventListener('pointerdown', e => {
+    knob.setPointerCapture(e.pointerId);
+    knob.classList.add('dragging');
+    lastAngle = angleAt(e);
+    knob.focus();
+  });
+
+  knob.addEventListener('pointermove', e => {
+    if (lastAngle === null) return;
+    const a = angleAt(e);
+    let d = a - lastAngle;
+    if (d > 180) d -= 360;
+    if (d < -180) d += 360;
+    lastAngle = a;
+    setValue(values[mode] + d / DEG_PER_UNIT);
+  });
+
+  const endDrag = () => { lastAngle = null; knob.classList.remove('dragging'); };
+  knob.addEventListener('pointerup', endDrag);
+  knob.addEventListener('pointercancel', endDrag);
+
+  // Scroll wheel anywhere on the control.
+  dial.addEventListener('wheel', e => {
+    e.preventDefault();
+    setValue(values[mode] + (e.deltaY < 0 ? 2 : -2));
+  }, { passive: false });
+
+  // Keyboard.
+  knob.addEventListener('keydown', e => {
+    const step = e.shiftKey ? 10 : 1;
+    const map = {
+      ArrowUp: step, ArrowRight: step, ArrowDown: -step, ArrowLeft: -step,
+      PageUp: 10, PageDown: -10
+    };
+    if (e.key in map) setValue(values[mode] + map[e.key]);
+    else if (e.key === 'Home') setValue(0);
+    else if (e.key === 'End') setValue(100);
+    else return;
+    e.preventDefault();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+/* Add to globals.css. Only the circle animates: turn off the default cross-fade. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/* Optional "shrink back" variant: keep the old snapshot on top while it collapses.
+   Toggle a class such as .theme-shrink on <html> before startViewTransition, animate
+   ::view-transition-old(root) instead, and remove the class when transition.finished resolves. */
+.theme-shrink::view-transition-old(root) {
+  z-index: 1;
+}
+.theme-shrink::view-transition-new(root) {
+  z-index: 0;
+}

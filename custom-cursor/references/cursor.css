@@ -1,0 +1,12 @@
+/* Add to globals.css. CustomCursor adds .custom-cursor to <html> only on mouse devices. */
+.custom-cursor,
+.custom-cursor * {
+  cursor: none !important;
+}
+
+/* Text fields keep the native I-beam (the custom arrow fades out over them). */
+.custom-cursor input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]),
+.custom-cursor textarea,
+.custom-cursor [contenteditable="true"] {
+  cursor: text !important;
+}
